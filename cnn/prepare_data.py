@@ -52,8 +52,9 @@ class ReaderWrapper:
         return training_data_X, self._dataset.training_data.Y
     
     def get_ong_data(self):
-        training_data_X = self._dataset.training_data.X[0].reshape(1,28,28,1)
-        return training_data_X, self._dataset.training_data.Y[0]
+        one_training_data_X = self._dataset.training_data.X[:,0]
+        one_training_data_X = one_training_data_X.reshape(1,28,28,1)
+        return one_training_data_X, self._dataset.training_data.Y[0]
         
     def get_validation_data(self):
         (_,m) = np.shape(self._dataset.validation_data.X)
@@ -67,6 +68,6 @@ class ReaderWrapper:
 
 if __name__ == '__main__':
     reader = ReaderWrapper()
-    indexs = reader.get_mini_batchs()
-    print indexs[0][0]
+    indexs = reader.get_ong_data()
+    print indexs
     

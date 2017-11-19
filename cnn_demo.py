@@ -1,12 +1,11 @@
-import numpy as np
-
 from cnn.prepare_data import ReaderWrapper
 from cnn.test_accuracy import test_accuracy
 from cnn.train_accuracy import train_accuracy
 from cnn.cost_function import cost_function
 
+from cnn.mini_batch import mini_batch_data
 from cnn.initialization_ramdon import initialize_ramdon
-from cnn.sgd import sgd
+from cnn.adam import AdamOptimizer
 
 import cnn.conv as conv
 import cnn.pooling as pool
@@ -18,9 +17,8 @@ class CNNModel:
     def __init__(self):
         self._reader = ReaderWrapper()
  
-    def train(self, stride = 1, fliter = 5, pad = 2,para_dims = ([5,5,1,8],[5,5,8,16],[7*7*16,16],[16,10]), learning_rate = 0.01, num_iterations = 200):
+    def train(self, stride = 1, fliter = 5, pad = 2,para_dims = ([5,5,1,8],[5,5,8,16],[7*7*16,16],[16,10]), learning_rate = 0.0001, num_iterations = 30):
         train_X, train_Y = self._reader.get_training_data()
-        train_X, train_Y = train_X[0:30000,:,:,:], train_Y[:,0:30000]
         self._para_dims = para_dims
         self._stride = stride
         self._fliter = fliter
@@ -35,17 +33,20 @@ class CNNModel:
         self._AL = None
         self._mean = None
         self._var = None
-        for i in range(num_iterations):            
-            hit_count = 0
-            self._forward(train_X)
-            cost = cost_function(self._AL, train_Y, self._L)
-            self._backward(train_Y)
-            self._parameters = sgd(self._learning_rate, self._parameters, self._grads, self._L)
-            h_c =  train_accuracy(self._AL, train_Y)
-            hit_count += h_c
-            costs.append(cost)
-            print ('step %d cost %f, hit_count = %d, hit_ratio = %.2lf%%' % (i, cost, hit_count, hit_count * 100.0 / train_X.shape[1]))
-            accuracy = hit_count * 100.0 / train_X.shape[1]
+        adam = AdamOptimizer(self._learning_rate, para_dims)
+        for i in range(num_iterations):
+            mini_batchs = mini_batch_data(train_X, train_Y,1000)
+            hit_count = 0         
+            for X, Y in mini_batchs:
+                self._forward(X)
+                cost = cost_function(self._AL, Y, self._L)
+                self._backward(Y)
+                self._parameters = adam.update_parameters(self._parameters, self._grads, self._L)
+                h_c =  train_accuracy(self._AL, Y)
+                hit_count += h_c
+                costs.append(cost)
+            print ('iter %d cost %f, h_c = %d, hit_ratio = %.2lf%%' % (i, cost, hit_count, hit_count * 100.0 / train_X.shape[0]))
+            accuracy = hit_count * 100.0 / train_X.shape[0]
             accuracys.append(accuracy)
         return costs, accuracys
     
@@ -62,8 +63,8 @@ class CNNModel:
         AL, _ = softmax.forward(Z) 
         cost = cost_function(AL, Y, self._L, self._parameters)
         hit_count = test_accuracy(AL, Y)
-        print ('cost %f, hit_count = %d, hit_ratio = %.2lf%%' % (cost, hit_count, hit_count * 100.0 / A.shape[1]))
-        return (cost, hit_count * 100.0 / A.shape[1])
+        print ('cost %f, hit_count = %d, hit_ratio = %.2lf%%' % (cost, hit_count, hit_count * 100.0 / A.shape[0]))
+        return (cost, hit_count * 100.0 / A.shape[0])
         
     def test(self):
         X, Y = self._reader.get_test_data()
