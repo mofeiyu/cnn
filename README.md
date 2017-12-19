@@ -32,4 +32,4 @@
 
 * optimization: adam
 
-* dataset: 'MNIST',
+* dataset: 'MNIST'
